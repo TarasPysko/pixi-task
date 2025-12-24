@@ -6,7 +6,6 @@ import { UIOverlay } from "./components/UIOverlay";
 function App() {
   const canvasRef = useRef<HTMLDivElement>(null);
   const engineRef = useRef<GameEngine | null>(null);
-  const initialized = useRef(false);
 
   const [stats, setStats] = useState<GameStats>({
     shapeCount: 0,
@@ -16,19 +15,14 @@ function App() {
   });
 
   useEffect(() => {
-    if (!canvasRef.current || initialized.current) return;
+    if (!canvasRef.current || engineRef.current) return;
 
-    initialized.current = true;
-
-    const engine = new GameEngine(canvasRef.current, (newStats) =>
-      setStats(newStats)
+    const engine = new GameEngine(
+      canvasRef.current,
+      window.innerWidth,
+      window.innerHeight,
+      (newStats) => setStats(newStats)
     );
-
-    engine.init(window.innerWidth, window.innerHeight).then(() => {
-      if (!engineRef.current) {
-        engine.destroy();
-      }
-    });
 
     engineRef.current = engine;
 
@@ -41,12 +35,10 @@ function App() {
 
     return () => {
       window.removeEventListener("resize", handleResize);
-
       if (engineRef.current) {
         engineRef.current.destroy();
         engineRef.current = null;
       }
-      initialized.current = false;
     };
   }, []);
 

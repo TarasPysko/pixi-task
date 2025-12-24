@@ -1,5 +1,6 @@
 import * as PIXI from "pixi.js";
 import type { ShapeType } from "./types";
+
 export class ShapeFactory {
   static createRandomShape(
     x: number,

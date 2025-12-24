@@ -1,7 +1,5 @@
-// src/engine/types.ts
 import * as PIXI from "pixi.js";
 
-// ОСЬ ЦЕЙ РЯДОК ДУЖЕ ВАЖЛИВИЙ:
 export type ShapeType =
   | "triangle"
   | "rect"

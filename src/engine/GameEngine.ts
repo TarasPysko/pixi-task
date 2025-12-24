@@ -3,27 +3,24 @@ import type { ShapeObject, GameStats } from "./types";
 import { ShapeFactory } from "./ShapeFactory";
 
 export class GameEngine {
-  public app: PIXI.Application | null = null;
+  public app: PIXI.Application;
   private shapes: ShapeObject[] = [];
-  private container: HTMLElement;
 
   private gravity: number = 2;
   private shapesPerSec: number = 1;
   private timeSinceSpawn: number = 0;
 
-  private isDestroyed: boolean = false;
-
   private onStatsUpdate: (stats: GameStats) => void;
 
-  constructor(container: HTMLElement, onStatsUpdate: (s: GameStats) => void) {
-    this.container = container;
+  constructor(
+    container: HTMLElement,
+    width: number,
+    height: number,
+    onStatsUpdate: (s: GameStats) => void
+  ) {
     this.onStatsUpdate = onStatsUpdate;
-  }
 
-  public async init(width: number, height: number) {
-    const app = new PIXI.Application();
-
-    await app.init({
+    this.app = new PIXI.Application({
       width,
       height,
       backgroundColor: 0xffffff,
@@ -32,16 +29,7 @@ export class GameEngine {
       autoDensity: true,
     });
 
-    if (this.isDestroyed) {
-      app.destroy();
-      return;
-    }
-
-    this.app = app;
-
-    if (this.container && this.app.canvas) {
-      this.container.appendChild(this.app.canvas);
-    }
+    container.appendChild(this.app.view as unknown as HTMLElement);
 
     this.app.stage.eventMode = "static";
     this.app.stage.hitArea = this.app.screen;
@@ -50,13 +38,11 @@ export class GameEngine {
       this.spawnShape(e.global.x, e.global.y);
     });
 
-    this.app.ticker.add(this.update.bind(this));
+    this.app.ticker.add((delta: number) => this.update(delta));
   }
 
-  private update(ticker: PIXI.Ticker) {
-    if (!this.app || this.isDestroyed) return;
-
-    const delta = ticker.deltaTime;
+  private update(delta: number) {
+    if (!this.app || !this.app.stage) return;
 
     const msPerFrame = 16.66;
     this.timeSinceSpawn += msPerFrame * delta;
@@ -72,7 +58,8 @@ export class GameEngine {
 
     this.shapes.forEach((shape) => {
       shape.graphics.y += this.gravity * delta;
-      if (shape.graphics.y > this.app.screen.height + 100) {
+
+      if (this.app && shape.graphics.y > this.app.screen.height + 100) {
         shapesToRemove.push(shape.id);
       }
     });
@@ -82,7 +69,7 @@ export class GameEngine {
   }
 
   public spawnShape(x: number, y: number) {
-    if (!this.app || this.isDestroyed) return;
+    if (!this.app) return;
 
     const { graphics, area, type } = ShapeFactory.createRandomShape(x, y);
     const id = Date.now() + Math.random();
@@ -98,7 +85,7 @@ export class GameEngine {
   }
 
   public removeShape(id: number) {
-    if (!this.app || this.isDestroyed) return;
+    if (!this.app) return;
 
     const index = this.shapes.findIndex((s) => s.id === id);
     if (index !== -1) {
@@ -128,28 +115,19 @@ export class GameEngine {
   }
 
   public resize(w: number, h: number) {
-    if (this.app && !this.isDestroyed) {
+    if (this.app) {
       this.app.renderer.resize(w, h);
       this.app.stage.hitArea = new PIXI.Rectangle(0, 0, w, h);
     }
   }
 
   public destroy() {
-    this.isDestroyed = true;
-
     if (this.app) {
-      if (this.app.canvas && this.app.canvas.parentNode) {
-        this.app.canvas.parentNode.removeChild(this.app.canvas);
-      }
-
-      this.app.destroy({ removeView: true }, { children: true });
-      this.app = null;
+      this.app.destroy(true, { children: true });
     }
   }
 
   private broadcastStats() {
-    if (this.isDestroyed) return;
-
     const totalArea = this.shapes.reduce((acc, s) => acc + s.area, 0);
     this.onStatsUpdate({
       shapeCount: this.shapes.length,
